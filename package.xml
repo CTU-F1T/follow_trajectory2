@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<?xml-model
+  href="http://download.ros.org/schema/package_format3.xsd"
+  schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>follow_trajectory2</name>
+  <version>0.0.0</version>
+  <description>
+    ROS package for following a planned trajectory of the car.
+  </description>
+
+  <maintainer email="f1tenth@rtime.felk.cvut.cz">F1tenth CTU Community</maintainer>
+
+  <license>GPLv3</license>
+
+  <author email="klapajar@fel.cvut.cz">Jaroslav Klapálek</author>
+
+  <url type="repository">https://github.com/CTU-F1T/follow_trajectory2</url>
+
+  <!-- Build tool. For ROS1 leave this here. -->
+  <buildtool_depend condition="$ROS_VERSION == 1">catkin</buildtool_depend>
+
+  <!-- Packages dependencies. -->
+  <exec_depend condition="$ROS_VERSION == 1">rospy</exec_depend>
+  <exec_depend condition="$ROS_VERSION == 2">rclpy</exec_depend>
+
+  <exec_depend version_gte="0.7.0">autopsy</exec_depend>
+
+  <!-- Any other parameters can be stored here. -->
+  <export>
+    <index url="git@github.com:CTU-F1T/follow_trajectory2.git" />
+
+    <build_type condition="$ROS_VERSION == 1">catkin</build_type>
+    <build_type condition="$ROS_VERSION == 2">ament_python</build_type>
+  </export>
+
+</package>
