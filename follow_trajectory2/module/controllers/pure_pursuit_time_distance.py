@@ -14,7 +14,7 @@ it is selected statically by timeshift.
 
 #import rospy
 
-from controllerabc import *
+from .controllerabc import *
 
 from autopsy.reconfigure import ParameterServer
 
