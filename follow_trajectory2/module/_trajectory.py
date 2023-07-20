@@ -12,7 +12,6 @@ import numpy
 from ._utils import *
 
 from geometry_msgs.msg import Point, Quaternion
-from autoware_auto_msgs.msg import Trajectory
 
 from scipy.spatial.transform import Slerp, Rotation
 

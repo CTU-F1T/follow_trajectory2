@@ -46,7 +46,7 @@ from geometry_msgs.msg import PointStamped
 from std_msgs.msg import Bool
 from nav_msgs.msg import Odometry, Path
 from std_msgs.msg import String
-from autoware_auto_msgs.msg import Trajectory
+from autoware_auto_msgs.msg import Trajectory as TrajectoryA
 from vesc_msgs.msg import VescStateStamped
 
 
@@ -100,7 +100,7 @@ class RunNode(Node):
             self.create_subscription(Odometry, "/odom", self.callback_odom, qos_profile = QoSProfile(depth = 1, durability = DurabilityPolicy.VOLATILE, reliability = ReliabilityPolicy.BEST_EFFORT))
 
         self.Subscriber("/path", Path, self.callback_path)
-        self.Subscriber("/trajectory", Trajectory, self.callback_trajectory)
+        self.Subscriber("/trajectory", TrajectoryA, self.callback_trajectory)
         self.Subscriber("/eStop", Bool, self.callback_estop)
 
         if ROS_VERSION == 1:
