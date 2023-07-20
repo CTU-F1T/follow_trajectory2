@@ -13,6 +13,8 @@
 
   <license>GPLv3</license>
 
+  <author email="nagytom4@fel.cvut.cz">Tomáš Nagy</author>
+  <author email="endlemar@fel.cvut.cz">Martin Endler</author>
   <author email="klapajar@fel.cvut.cz">Jaroslav Klapálek</author>
 
   <url type="repository">https://github.com/CTU-F1T/follow_trajectory2</url>

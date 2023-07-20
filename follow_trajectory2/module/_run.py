@@ -6,11 +6,57 @@
 # Imports & Globals
 ######################
 
-from autopsy.node import Node
+from autopsy.reconfigure import ParameterServer
+from autopsy.node import Node, ROS_VERSION
+
+from ._trajectory import Trajectory
+from ._utils import *
+from ._vehicle import Vehicle
+
+
+if ROS_VERSION == 1:
+    import rospy
+else:
+    import rclpy
+    from rclpy.qos import *
+
+
+# Dynamic module list of Controllers
+from enum import Enum
+
+import follow_trajectory2.module.controllers as controllers
+
+control_methods = {}
+
+class ControlMethod(Enum):
+    pass
+
+for module in controllers.__all__:
+    _ctrl = __import__("follow_trajectory2.module.controllers." + module, fromlist=["Controller", "name"])
+    _d = {cm.name: cm.value for cm in ControlMethod}
+    _d.update({_ctrl.name: _ctrl.value})
+    ControlMethod = Enum("ControlMethod", _d)
+    control_methods[_ctrl.value] = _ctrl.Controller
+
+
+# Message Types
+from command_msgs.msg import CommandArrayStamped
+from geometry_msgs.msg import PointStamped
+from std_msgs.msg import Bool
+from nav_msgs.msg import Odometry
+from std_msgs.msg import String
+from autoware_auto_msgs.msg import Trajectory
+from vesc_msgs.msg import VescStateStamped
+
+
+# Global parameters
+PARAMETERS = [
+    ("method", ControlMethod),
+]
 
 
 ######################
-# RecordNode
+# RunNode
 ######################
 
 class RunNode(Node):
@@ -18,3 +64,169 @@ class RunNode(Node):
     def __init__(self):
         super(Node, self).__init__("follow_trajectory2")
 
+
+        # Internal variables
+        self.Vehicle = Vehicle()
+        self.running = False
+        self.time_last = self.get_time()
+
+        # Intialize controllers
+        for key, ctrl in control_methods.items():
+            control_methods[key] = ctrl(vehicle = self.Vehicle)
+
+
+        self.P = ParameterServer()
+
+        self.P.update(PARAMETERS)
+
+
+        self._controller = control_methods.get(self.P.method.value)
+        print ("Using controller '%d': %s" % (self.P.method.value, ControlMethod(self.P.method.value).name))
+
+
+        # Publishers
+        self.pub_command = self.Publisher("/command", CommandArrayStamped, queue_size = 1)
+        self.traj_point = self.Publisher("/trajectory/current_point", PointStamped, queue_size = 1)
+        self.back_axle = self.Publisher("/trajectory/back_axle", PointStamped, queue_size = 1)
+        self.traj_point_str = self.Publisher("/trajectory/current_point/string", String, queue_size = 1)
+
+
+        # Subscribers
+        # Odometry uses some tweaks available only in ROS1.
+        if ROS_VERSION == 1:
+            rospy.Subscriber("/odom", Odometry, self.callback_odom, queue_size = 1, buff_size = 1400, tcp_nodelay = False)
+        else: # ROS_VERSION == 2
+            self.create_subscription(Odometry, "/odom", self.callback_odom, qos_profile = QoSProfile(depth = 1, durability = DurabilityPolicy.VOLATILE, reliability = ReliabilityPolicy.BEST_EFFORT))
+
+        self.Subscriber("/trajectory", Trajectory, self.callback_trajectory)
+        self.Subscriber("/eStop", Bool, self.callback_estop)
+
+        if ROS_VERSION == 1:
+            self.Subscriber("/sensors/core", VescStateStamped, self.callback_vesc)
+        else: # ROS_VERSION == 2
+            self.create_subscription(VescStateStamped, "/sensors/core", self.callback_vesc, qos_profile = QoSProfile(depth = 1, durability = DurabilityPolicy.VOLATILE, reliability = ReliabilityPolicy.BEST_EFFORT))
+
+
+    ## Utils ##
+    def get_time(self):
+        """Obtain the current ROS time as float."""
+        if ROS_VERSION == 1:
+            return rospy.get_time()
+        else: # ROS_VERSION == 2
+            return self.get_clock().now().nanoseconds / 1e9
+
+    def get_time_now(self):
+        """Obtain the current ROS timestamp."""
+        if ROS_VERSION == 1:
+            return rospy.Time.now()
+        else: # ROS_VERSION == 2
+            return self.get_clock().now().to_msg()
+
+
+    ## Callbacks ##
+    def callback_trajectory(self, data):
+        """Store a Trajectory.
+
+        Arguments:
+        data -- autoware_auto_msgs/Trajectory
+        """
+        self.saved_trajectory = Trajectory(data, self.Vehicle)
+        print ("Received trajectory.")
+        self._controller.process_trajectory(self, self.saved_trajectory)
+
+
+    def callback_estop(self, data):
+        """Callback on `auto start/stop`. Reset the Vehicle states.
+
+        Arguments:
+        data -- std_msgs/Bool
+        """
+        self.Vehicle.stop()
+        self.running = not data.data
+
+
+    def callback_vesc(self, data):
+        """Callback on VESC to obtain current speed of the vehicle.
+
+        Arguments:
+        data -- vesc_msgs/VescStateStamped
+        """
+        self.Vehicle.v = data.state.speed / 4105.324277107
+
+
+    def callback_odom(self, data):
+        """Callback on the Odometry message.
+
+        Arguments:
+        data -- nav_msgs/Odometry
+        """
+
+        if not self.running:
+            return
+
+
+        # Update states
+        self.Vehicle.position = data.pose.pose.position
+        self.Vehicle.orientation = data.pose.pose.orientation
+        self.Vehicle.dt = self.get_time() - self.time_last
+
+
+        #
+        if self.saved_trajectory is not None:
+
+            ## ... and now we continue in case that everything is OK.
+            nearest_point_id, point = self._controller.select_point(self, self.saved_trajectory)
+
+            ## Visualize the trajectory point + back axle position.
+            self.traj_point.publish(
+                PointStamped(
+                    Header(frame_id="map"),
+                    Point(
+                        x = point.x,
+                        y = point.y,
+                        z = 0.0
+                    )
+                )
+            )
+
+            self.back_axle.publish(
+                PointStamped(
+                    header = Header(frame_id="odom"),
+                    point = self.Vehicle.rear_axle
+                )
+            )
+
+            self.traj_point_str.publish(
+                String(data = str(point))
+            )
+
+            ## Obtain action values
+            _velocity, _steer = self._controller.compute(self, point, self.saved_trajectory, nearest_point_id)
+
+            self.publish_action(_velocity, _steer)
+
+
+    ## Publishers ##
+    def publish_action(self, velocity, steering):
+        """Publish the action values to the Drive-API.
+
+        Arguments:
+        velocity -- desired velocity of the car, m.s^-1, float
+        steering -- desired steering value, rad, float
+        """
+        self.pub_command.publish(CommandArrayStamped(
+            header = Header(stamp = self.get_time_now()), commands = [
+                Command(
+                    command = "speed",
+                    parameters = [
+                        CommandParameter(parameter = "metric", value = velocity)
+                    ]
+                ),
+                Command(
+                    command = "steer",
+                    parameters = [
+                        CommandParameter(parameter = "rad", value = steering)
+                    ]
+                )
+            ]
+        ))
