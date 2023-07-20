@@ -17,9 +17,16 @@ from ._vehicle import Vehicle
 
 if ROS_VERSION == 1:
     import rospy
+
+    def update_parameters(p):
+        if rospy.has_param("~"):
+            p.update(rospy.get_param("~"), only_existing = True)
 else:
     import rclpy
     from rclpy.qos import *
+
+    def update_parameters(p):
+        pass
 
 
 # Dynamic module list of Controllers
@@ -85,6 +92,10 @@ class RunNode(Node):
         self.P = ParameterServer()
 
         self.P.update(PARAMETERS)
+
+        update_parameters(self.P)
+
+        self.P.reconfigure(node = self)
 
 
         self._controller = control_methods.get(self.P.method.value)
@@ -157,6 +168,7 @@ class RunNode(Node):
         Arguments:
         data -- std_msgs/Bool
         """
+        print ("Using controller '%d': %s" % (self.P.method.value, ControlMethod(self.P.method.value).name))
         self.Vehicle.stop()
         self.running = not data.data
 

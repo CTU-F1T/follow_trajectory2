@@ -12,6 +12,18 @@ from .controllerabc import *
 
 from autopsy.reconfigure import ParameterServer
 
+from autopsy.node import ROS_VERSION
+
+if ROS_VERSION == 1:
+    import rospy
+
+    def update_parameters(p):
+        if rospy.has_param("~"):
+            p.update(rospy.get_param("~"), only_existing = True)
+else:
+    def update_parameters(p):
+        pass
+
 
 # Messages
 from std_msgs.msg import Header
@@ -48,10 +60,9 @@ class Controller(ControllerABC):
         self.P2 = ParameterServer()
         self.P2.update(PARAMETERS)
 
-        #if rospy.has_param("~"):
-        #    self.P2.update(rospy.get_param("~"), only_existing = True)
+        update_parameters(self.P2)
 
-        #self.P2.reconfigure(namespace = "follow_trajectory/pure_pursuit")
+        self.P2.reconfigure(namespace = "follow_trajectory/pure_pursuit")
 
         #self.pub_la_point = rospy.Publisher("trajectory/lookahead_point", PointStamped, queue_size = 1)
 

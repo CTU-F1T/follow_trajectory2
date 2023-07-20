@@ -18,6 +18,18 @@ from controllerabc import *
 
 from autopsy.reconfigure import ParameterServer
 
+from autopsy.node import ROS_VERSION
+
+if ROS_VERSION == 1:
+    import rospy
+
+    def update_parameters(p):
+        if rospy.has_param("~"):
+            p.update(rospy.get_param("~"), only_existing = True)
+else:
+    def update_parameters(p):
+        pass
+
 
 # Messages
 from std_msgs.msg import Header, String
@@ -78,8 +90,7 @@ class Controller(ControllerABC):
         self.P2.update(PARAMETERS)
         self.P2.link(self.P2.min_lookfwd_dist, self.P2.max_lookfwd_dist)
 
-        #if rospy.has_param("~"):
-        #    self.P2.update(rospy.get_param("~"), only_existing = True)
+        update_parameters(self.P2)
 
         self.P2.reconfigure(namespace = "follow_trajectory/pure_pursuit_time_dist")
 
