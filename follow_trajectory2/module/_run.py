@@ -86,7 +86,7 @@ class RunNode(Node):
 
         # Intialize controllers
         for key, ctrl in control_methods.items():
-            control_methods[key] = ctrl(vehicle = self.Vehicle)
+            control_methods[key] = ctrl(vehicle = self.Vehicle, node = self)
 
 
         self.P = ParameterServer()

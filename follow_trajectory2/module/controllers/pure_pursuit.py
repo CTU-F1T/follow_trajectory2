@@ -62,7 +62,7 @@ class Controller(ControllerABC):
 
         update_parameters(self.P2)
 
-        self.P2.reconfigure(namespace = "follow_trajectory/pure_pursuit")
+        self.P2.reconfigure(namespace = "follow_trajectory/pure_pursuit", node = self.node)
 
         #self.pub_la_point = rospy.Publisher("trajectory/lookahead_point", PointStamped, queue_size = 1)
 

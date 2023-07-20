@@ -21,10 +21,11 @@ from geometry_msgs.msg import Point
 
 class ControllerABC(object):
 
-    def __init__(self, vehicle, *args, **kwargs):
+    def __init__(self, vehicle, node = None, *args, **kwargs):
         super(ControllerABC, self).__init__()
 
         self.Vehicle = vehicle
+        self.node = node
 
 
     def process_trajectory(self, controller, trajectory):
