@@ -115,7 +115,9 @@ class RunNode(Node):
         if ROS_VERSION == 1:
             return rospy.get_time()
         else: # ROS_VERSION == 2
-            return self.get_clock().now().nanoseconds / 1e9
+            # https://github.com/ros2/rclpy/issues/293
+            # 1e9 is float in Python 3, that leads to floating point error on division.
+            return self.get_clock().now().nanoseconds / (10 ** 9)
 
     def get_time_now(self):
         """Obtain the current ROS timestamp."""
