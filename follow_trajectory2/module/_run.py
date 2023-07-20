@@ -70,6 +70,7 @@ class RunNode(Node):
         self.Vehicle = Vehicle()
         self.running = False
         self.time_last = self.get_time()
+        self.time_elapsed = 0.0
 
         # Intialize controllers
         for key, ctrl in control_methods.items():
@@ -154,6 +155,9 @@ class RunNode(Node):
         self.Vehicle.stop()
         self.running = not data.data
 
+        if self.running:
+            self.time_elapsed = 0.0
+
 
     def callback_vesc(self, data):
         """Callback on VESC to obtain current speed of the vehicle.
@@ -180,6 +184,8 @@ class RunNode(Node):
         self.Vehicle.orientation = data.pose.pose.orientation
         self.Vehicle.dt = self.get_time() - self.time_last
 
+
+        self.time_elapsed += self.Vehicle.dt
 
         #
         if self.saved_trajectory is not None:
