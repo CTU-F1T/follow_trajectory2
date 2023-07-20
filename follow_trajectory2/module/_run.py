@@ -53,6 +53,11 @@ from vesc_msgs.msg import VescStateStamped
 # Global parameters
 PARAMETERS = [
     ("method", ControlMethod),
+
+    ## Common variables
+    # Acceleration limits
+    ("max_fwd_acc", {"default": 6.0, "min": 0.0, "max": 10.0, "description": "Maximum forward acceleration [m.s^-2]", "ns": "default"}),
+    ("max_brk_dcc", {"default": -6.0, "min": -10.0, "max": 0.0, "description": "Maximum backward deceleration [m.s^-2]", "ns": "default"}),
 ]
 
 
