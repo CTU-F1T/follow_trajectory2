@@ -100,6 +100,7 @@ class RunNode(Node):
 
         self._controller = control_methods.get(self.P.method.value)
         print ("Using controller '%d': %s" % (self.P.method.value, ControlMethod(self.P.method.value).name))
+        self.P.method.callback = self.change_controller
 
 
         # Publishers
@@ -263,3 +264,13 @@ class RunNode(Node):
                 )
             ]
         ))
+
+
+    ## Reconfigure ##
+    def change_controller(self, controller_id):
+        if controller_id in control_methods:
+            self._controller = control_methods.get(controller_id)
+            print("Using controller '%d': %s" % (controller_id, ControlMethod(controller_id).name))
+            return controller_id
+        else:
+            return self.P.method.value
