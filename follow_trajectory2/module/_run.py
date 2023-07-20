@@ -99,7 +99,7 @@ class RunNode(Node):
 
 
         self._controller = control_methods.get(self.P.method.value)
-        print ("Using controller '%d': %s" % (self.P.method.value, ControlMethod(self.P.method.value).name))
+        self.loginfo("Using controller '%d': %s" % (self.P.method.value, ControlMethod(self.P.method.value).name))
         self.P.method.callback = self.change_controller
 
 
@@ -149,7 +149,7 @@ class RunNode(Node):
     def callback_path(self, data):
         """Callback on the Path message."""
         self.saved_trajectory = Path(data, self.Vehicle)
-        print ("Received path.")
+        self.loginfo("Received path.")
 
 
     def callback_trajectory(self, data):
@@ -159,7 +159,7 @@ class RunNode(Node):
         data -- autoware_auto_msgs/Trajectory
         """
         self.saved_trajectory = Trajectory(data, self.Vehicle)
-        print ("Received trajectory.")
+        self.loginfo("Received trajectory.")
         self._controller.process_trajectory(self, self.saved_trajectory)
 
 
@@ -169,7 +169,7 @@ class RunNode(Node):
         Arguments:
         data -- std_msgs/Bool
         """
-        print ("Using controller '%d': %s" % (self.P.method.value, ControlMethod(self.P.method.value).name))
+        self.loginfo("Using controller '%d': %s" % (self.P.method.value, ControlMethod(self.P.method.value).name))
         self.Vehicle.stop()
         self.running = not data.data
 
@@ -270,7 +270,7 @@ class RunNode(Node):
     def change_controller(self, controller_id):
         if controller_id in control_methods:
             self._controller = control_methods.get(controller_id)
-            print("Using controller '%d': %s" % (controller_id, ControlMethod(controller_id).name))
+            self.loginfo("Using controller '%d': %s" % (controller_id, ControlMethod(controller_id).name))
             return controller_id
         else:
             return self.P.method.value
