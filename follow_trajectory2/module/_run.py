@@ -9,6 +9,7 @@
 from autopsy.reconfigure import ParameterServer
 from autopsy.node import Node, ROS_VERSION
 
+from ._path import Path
 from ._trajectory import Trajectory
 from ._utils import *
 from ._vehicle import Vehicle
@@ -43,7 +44,7 @@ for module in controllers.__all__:
 from command_msgs.msg import CommandArrayStamped
 from geometry_msgs.msg import PointStamped
 from std_msgs.msg import Bool
-from nav_msgs.msg import Odometry
+from nav_msgs.msg import Odometry, Path
 from std_msgs.msg import String
 from autoware_auto_msgs.msg import Trajectory
 from vesc_msgs.msg import VescStateStamped
@@ -98,6 +99,7 @@ class RunNode(Node):
         else: # ROS_VERSION == 2
             self.create_subscription(Odometry, "/odom", self.callback_odom, qos_profile = QoSProfile(depth = 1, durability = DurabilityPolicy.VOLATILE, reliability = ReliabilityPolicy.BEST_EFFORT))
 
+        self.Subscriber("/path", Path, self.callback_path)
         self.Subscriber("/trajectory", Trajectory, self.callback_trajectory)
         self.Subscriber("/eStop", Bool, self.callback_estop)
 
@@ -124,6 +126,12 @@ class RunNode(Node):
 
 
     ## Callbacks ##
+    def callback_path(self, data):
+        """Callback on the Path message."""
+        self.saved_trajectory = Path(data, self.Vehicle)
+        print ("Received path.")
+
+
     def callback_trajectory(self, data):
         """Store a Trajectory.
 
