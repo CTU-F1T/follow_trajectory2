@@ -41,9 +41,9 @@ for module in controllers.__all__:
 
 
 # Message Types
-from command_msgs.msg import CommandArrayStamped
+from command_msgs.msg import CommandArrayStamped, Command, CommandParameter
 from geometry_msgs.msg import PointStamped
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, Header
 from nav_msgs.msg import Odometry, Path
 from std_msgs.msg import String
 from autoware_auto_msgs.msg import Trajectory as TrajectoryA
@@ -196,8 +196,8 @@ class RunNode(Node):
             ## Visualize the trajectory point + back axle position.
             self.traj_point.publish(
                 PointStamped(
-                    Header(frame_id="map"),
-                    Point(
+                    header = Header(frame_id="map"),
+                    point = Point(
                         x = point.x,
                         y = point.y,
                         z = 0.0
