@@ -76,14 +76,14 @@ class Path(object):
             self._z = obtain(self.path, "z")
 
         if hasattr(self.get(0), "orientation"):
-            self._ox = numpy.asarray([ pose.orientation.x for tpoint in self.trajectory ])
-            self._oy = numpy.asarray([ tpoint.orientation.y for tpoint in self.trajectory ])
-            self._oz = numpy.asarray([ tpoint.orientation.z for tpoint in self.trajectory ])
-            self._ow = numpy.asarray([ tpoint.orientation.w for tpoint in self.trajectory ])
+            self._ox = numpy.asarray([ tpoint.orientation.x for tpoint in self.path ])
+            self._oy = numpy.asarray([ tpoint.orientation.y for tpoint in self.path ])
+            self._oz = numpy.asarray([ tpoint.orientation.z for tpoint in self.path ])
+            self._ow = numpy.asarray([ tpoint.orientation.w for tpoint in self.path ])
 
-        self._i = obtain(self.trajectory, "i")
+        self._i = obtain(self.path, "i")
 
-        self._theta = obtain(self.trajectory, "theta")
+        self._theta = obtain(self.path, "theta")
 
 
     def get(self, index):
@@ -145,6 +145,8 @@ class PathPoint(Point):
         self.i = kwargs.get("i", None)
         self.theta = kwargs.get("theta", None)
 
+        self.v = 0.5
+
     @property
     def yaw(self):
         return quaternion_to_yaw(self.orientation) if self.orientation is not None else 0.0
@@ -160,12 +162,12 @@ class PathPoint(Point):
         """Obtain interpolated point.
 
         Arguments:
-        p1 -- TrajectoryPoint
-        p2 -- TrajectoryPoint
+        p1 -- PathPoint
+        p2 -- PathPoint
         ratio -- number in (0.0, 1.0)
 
         Return:
-        interpolated point -- instance of TrajectoryPoint
+        interpolated point -- instance of PathPoint
         """
         return PathPoint(
             Point(
