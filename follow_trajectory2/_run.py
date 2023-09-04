@@ -32,7 +32,7 @@ else:
 # Dynamic module list of Controllers
 from enum import Enum
 
-import follow_trajectory2.module.controllers as controllers
+import follow_trajectory2.controllers as controllers
 
 control_methods = {}
 
@@ -40,7 +40,7 @@ class ControlMethod(Enum):
     pass
 
 for module in controllers.__all__:
-    _ctrl = __import__("follow_trajectory2.module.controllers." + module, fromlist=["Controller", "name"])
+    _ctrl = __import__("follow_trajectory2.controllers." + module, fromlist=["Controller", "name"])
     _d = {cm.name: cm.value for cm in ControlMethod}
     _d.update({_ctrl.name: _ctrl.value})
     ControlMethod = Enum("ControlMethod", _d)

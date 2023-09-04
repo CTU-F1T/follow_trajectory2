@@ -8,7 +8,7 @@
 
 import math
 
-from follow_trajectory2.module._utils import *
+from follow_trajectory2._utils import *
 
 
 # Messages
