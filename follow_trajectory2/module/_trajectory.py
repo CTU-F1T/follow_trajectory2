@@ -9,6 +9,8 @@
 import math
 import numpy
 
+from autopsy.node import ROS_VERSION
+
 from ._utils import *
 
 from geometry_msgs.msg import Point, Quaternion
@@ -64,19 +66,34 @@ class Trajectory(object):
         _ow = numpy.asarray([ tpoint.pose.orientation.w for tpoint in msg.points ])
         _theta = numpy.unwrap(numpy.arctan2(_oz, _ow)*2)
 
-        self.trajectory = [
-            TrajectoryPoint(
-                tpoint.pose.position,
-                tpoint.pose.orientation,
-                i = i,
-                t = tpoint.time_from_start.to_sec(),
-                v = math.sqrt(tpoint.longitudinal_velocity_mps**2 + tpoint.lateral_velocity_mps**2),
-                a = tpoint.acceleration_mps2,
-                k = math.tan(tpoint.front_wheel_angle_rad) / vehicle.L,
-                delta = tpoint.front_wheel_angle_rad,
-                theta = _theta[i],
-            ) for i, tpoint in enumerate(msg.points)
-        ]
+        if ROS_VERSION == 1:
+            self.trajectory = [
+                TrajectoryPoint(
+                    tpoint.pose.position,
+                    tpoint.pose.orientation,
+                    i = i,
+                    t = tpoint.time_from_start.to_sec(),
+                    v = math.sqrt(tpoint.longitudinal_velocity_mps**2 + tpoint.lateral_velocity_mps**2),
+                    a = tpoint.acceleration_mps2,
+                    k = math.tan(tpoint.front_wheel_angle_rad) / vehicle.L,
+                    delta = tpoint.front_wheel_angle_rad,
+                    theta = _theta[i],
+                ) for i, tpoint in enumerate(msg.points)
+            ]
+        else:
+            self.trajectory = [
+                TrajectoryPoint(
+                    tpoint.pose.position,
+                    tpoint.pose.orientation,
+                    i = i,
+                    t = tpoint.time_from_start.sec,
+                    v = math.sqrt(tpoint.longitudinal_velocity_mps**2 + tpoint.lateral_velocity_mps**2),
+                    a = tpoint.acceleration_mps2,
+                    k = math.tan(tpoint.front_wheel_angle_rad) / vehicle.L,
+                    delta = tpoint.front_wheel_angle_rad,
+                    theta = _theta[i],
+                ) for i, tpoint in enumerate(msg.points)
+            ]
 
         if self.trajectory[-1].t is not None:
             self.endpoint_time = self.trajectory[-1].t + point_distance(self.trajectory[-1], self.trajectory[0]) * 2 / (self.trajectory[0].v + self.trajectory[-1].v)
