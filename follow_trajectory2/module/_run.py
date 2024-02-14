@@ -9,7 +9,7 @@
 from autopsy.reconfigure import ParameterServer
 from autopsy.node import Node, ROS_VERSION
 
-from ._path import Path
+from ._path import Path as PathO
 from ._trajectory import Trajectory
 from ._utils import *
 from ._vehicle import Vehicle
@@ -148,7 +148,7 @@ class RunNode(Node):
     ## Callbacks ##
     def callback_path(self, data):
         """Callback on the Path message."""
-        self.saved_trajectory = Path(data, self.Vehicle)
+        self.saved_trajectory = PathO(data, self.Vehicle)
         self.loginfo("Received path.")
 
 
