@@ -47,9 +47,9 @@ class Vehicle(object):
         _rotation = calc_rotation(self.orientation)
 
         return Point(
-            self.x + self.l_f * _rotation[0],
-            self.y + self.l_f * _rotation[1],
-            self.z + self.l_f * _rotation[2]
+            x = self.x + self.l_f * _rotation[0],
+            y = self.y + self.l_f * _rotation[1],
+            z = self.z + self.l_f * _rotation[2]
         )
 
     @property
@@ -57,9 +57,9 @@ class Vehicle(object):
         _rotation = calc_rotation(self.orientation)
 
         return Point(
-            self.x - self.l_r * _rotation[0],
-            self.y - self.l_r * _rotation[1],
-            self.z - self.l_r * _rotation[2]
+            x = self.x - self.l_r * _rotation[0],
+            y = self.y - self.l_r * _rotation[1],
+            z = self.z - self.l_r * _rotation[2]
         )
 
     ## Position
