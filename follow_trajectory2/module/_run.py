@@ -65,6 +65,13 @@ PARAMETERS = [
     # Acceleration limits
     ("max_fwd_acc", {"default": 6.0, "min": 0.0, "max": 10.0, "description": "Maximum forward acceleration [m.s^-2]", "ns": "default"}),
     ("max_brk_dcc", {"default": -6.0, "min": -10.0, "max": 0.0, "description": "Maximum backward deceleration [m.s^-2]", "ns": "default"}),
+
+    ## Others
+    ("use_odom_speed", {
+        "default": False,
+        "description": "When True, speed from the Odometry message "
+                       "is used for the Vehicle speed."
+    }),
 ]
 
 
@@ -203,6 +210,8 @@ class RunNode(Node):
         self.Vehicle.orientation = data.pose.pose.orientation
         self.Vehicle.dt = self.get_time() - self.time_last
 
+        if self.P.use_odom_speed:
+            self.Vehicle.v = data.twist.twist.linear.x
 
         self.time_elapsed += self.Vehicle.dt
         self.time_last = self.get_time()
