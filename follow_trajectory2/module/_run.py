@@ -171,6 +171,7 @@ class RunNode(Node):
         """
         self.loginfo("Using controller '%d': %s" % (self.P.method.value, ControlMethod(self.P.method.value).name))
         self.Vehicle.stop()
+        self.time_last = self.get_time()
         self.running = not data.data
 
         if self.running:
@@ -204,6 +205,7 @@ class RunNode(Node):
 
 
         self.time_elapsed += self.Vehicle.dt
+        self.time_last = self.get_time()
 
         #
         if self.saved_trajectory is not None:
