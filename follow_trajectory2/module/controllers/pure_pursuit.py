@@ -64,7 +64,7 @@ class Controller(ControllerABC):
 
         self.P2.reconfigure(namespace = "pure_pursuit", node = self.node)
 
-        #self.pub_la_point = rospy.Publisher("trajectory/lookahead_point", PointStamped, queue_size = 1)
+        self.pub_la_point = self.node.Publisher("trajectory/lookahead_point", PointStamped, queue_size = 1)
 
 
     def select_point(self, controller, trajectory):
@@ -130,6 +130,19 @@ class Controller(ControllerABC):
                 break
 
         #self.pub_la_point.publish(PointStamped(header=Header(stamp=rospy.Time.now(), frame_id="map"), point=trajectory.get(goal_point_id)))
+        self.pub_la_point.publish(
+            PointStamped(
+                header = Header(
+                    stamp = self.node.Time().to_msg(),
+                    frame_id = "map"
+                ),
+                point = Point(
+                    x = trajectory.get(goal_point_id).x,
+                    y = trajectory.get(goal_point_id).y,
+                    z = trajectory.get(goal_point_id).z,
+                )
+            )
+        )
 
 
         ## Compute the required steering angle ##

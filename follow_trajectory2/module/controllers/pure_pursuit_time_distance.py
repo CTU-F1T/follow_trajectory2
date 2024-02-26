@@ -33,7 +33,7 @@ else:
 
 # Messages
 from std_msgs.msg import Header, String
-from geometry_msgs.msg import PointStamped
+from geometry_msgs.msg import Point, PointStamped
 
 
 # Parameters
@@ -94,7 +94,7 @@ class Controller(ControllerABC):
 
         self.P2.reconfigure(namespace = "pure_pursuit_time_dist", node = self.node)
 
-        #self.pub_la_point = rospy.Publisher("trajectory/lookahead_point", PointStamped, queue_size = 1)
+        self.pub_la_point = self.node.Publisher("trajectory/lookahead_point", PointStamped, queue_size = 1)
         #self.pub_sp_point = rospy.Publisher("trajectory/speed_point", PointStamped, queue_size = 1)
         #self.pub_sp_point_str = rospy.Publisher("trajectory/speed_point/string", String, queue_size = 1)
 
@@ -228,7 +228,19 @@ class Controller(ControllerABC):
                 goal_point_id = i + trajectory_i
                 break
 
-        #self.pub_la_point.publish(PointStamped(header=Header(stamp=rospy.Time.now(), frame_id="map"), point=trajectory.get(goal_point_id)))
+        self.pub_la_point.publish(
+            PointStamped(
+                header = Header(
+                    stamp = self.node.Time().to_msg(),
+                    frame_id = "map"
+                ),
+                point = Point(
+                    x = trajectory.get(goal_point_id).x,
+                    y = trajectory.get(goal_point_id).y,
+                    z = trajectory.get(goal_point_id).z,
+                )
+            )
+        )
 
 
         ## Compute the required steering angle ##
