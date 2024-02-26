@@ -86,7 +86,7 @@ class Trajectory(object):
                     tpoint.pose.position,
                     tpoint.pose.orientation,
                     i = i,
-                    t = tpoint.time_from_start.sec,
+                    t = tpoint.time_from_start.sec + (tpoint.time_from_start.nanosec / 1.0e9),
                     v = math.sqrt(tpoint.longitudinal_velocity_mps**2 + tpoint.lateral_velocity_mps**2),
                     a = tpoint.acceleration_mps2,
                     k = math.tan(tpoint.front_wheel_angle_rad) / vehicle.L,
