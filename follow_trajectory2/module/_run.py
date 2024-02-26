@@ -6,6 +6,8 @@
 # Imports & Globals
 ######################
 
+import numpy
+
 from autopsy.reconfigure import ParameterServer
 from autopsy.node import Node, ROS_VERSION
 
