@@ -101,6 +101,7 @@ class RunNode(Node):
         self.running = False
         self.time_last = self.get_time()
         self.time_elapsed = 0.0
+        self.passed_half = False
 
         # Intialize controllers
         for key, ctrl in control_methods.items():
@@ -177,6 +178,7 @@ class RunNode(Node):
         data -- autoware_auto_msgs/Trajectory
         """
         self.saved_trajectory = Trajectory(data, self.Vehicle)
+        self.saved_errors = [ [] for _ in range(self.saved_trajectory.length) ]
         self.loginfo("Received trajectory.")
         self._controller.process_trajectory(self, self.saved_trajectory)
 
@@ -233,6 +235,17 @@ class RunNode(Node):
             ## ... and now we continue in case that everything is OK.
             nearest_point_id, point = self._controller.select_point(self, self.saved_trajectory)
 
+            if self.passed_half and nearest_point_id < 50:
+                self.passed_half = False
+                self.logger.info(",".join([
+                    "%s" % numpy.mean(self.saved_errors[i])
+                    for i in range(self.saved_trajectory.length)
+                ]))
+                self.saved_errors = [ [] for _ in range(self.saved_trajectory.length) ]
+
+            if not self.passed_half and nearest_point_id > 200:
+                self.passed_half = True
+
             ## Visualize the trajectory point + back axle position.
             self.traj_point.publish(
                 PointStamped(
@@ -254,6 +267,10 @@ class RunNode(Node):
 
             self.traj_point_str.publish(
                 String(data = str(point))
+            )
+
+            self.saved_errors[nearest_point_id].append(
+                point_distance(self.Vehicle, self.saved_trajectory.get(nearest_point_id)) * determine_side(self.saved_trajectory.get(nearest_point_id), self.saved_trajectory.get(nearest_point_id+1), self.Vehicle)
             )
 
             ## Obtain action values
