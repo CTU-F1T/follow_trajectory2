@@ -14,6 +14,7 @@ from ._trajectory import Trajectory
 from ._utils import *
 from ._vehicle import Vehicle
 
+import logging
 
 if ROS_VERSION == 1:
     import rospy
@@ -83,6 +84,16 @@ class RunNode(Node):
 
     def __init__(self):
         super(Node, self).__init__("follow_trajectory2")
+
+        logging.basicConfig(filename="follow_trajectory2.log",
+                            filemode='a',
+                            format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
+                            datefmt='%H:%M:%S',
+                            level=logging.DEBUG)
+
+        logging.info("FollowTrajectory2")
+
+        self.logger = logging.getLogger('followtrajectory')
 
 
         # Internal variables
