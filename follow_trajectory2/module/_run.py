@@ -125,8 +125,8 @@ class RunNode(Node):
             self.create_subscription(Odometry, "/odom", self.callback_odom, qos_profile = QoSProfile(depth = 1, durability = DurabilityPolicy.VOLATILE, reliability = ReliabilityPolicy.BEST_EFFORT))
 
         self.Subscriber("/path", Path, self.callback_path)
-        self.Subscriber("/trajectory", TrajectoryA, self.callback_trajectory)
-        self.Subscriber("/eStop", Bool, self.callback_estop)
+        self.create_subscription(TrajectoryA, "/trajectory", self.callback_trajectory, qos_profile = QoSProfile(depth = 1, durability = DurabilityPolicy.TRANSIENT_LOCAL))
+        self.create_subscription(Bool, "/eStop", self.callback_estop, qos_profile = QoSProfile(depth = 1, reliability = ReliabilityPolicy.BEST_EFFORT))
 
         if ROS_VERSION == 1:
             self.Subscriber("/sensors/core", VescStateStamped, self.callback_vesc)
