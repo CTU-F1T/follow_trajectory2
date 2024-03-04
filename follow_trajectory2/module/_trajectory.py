@@ -385,14 +385,31 @@ class TrajectoryPoint(Point):
         Return:
         interpolated point -- instance of TrajectoryPoint
         """
+        _q = Slerp(
+            [0, 1.0],
+            Rotation.from_quat([
+                [
+                    p1.orientation.x, p1.orientation.y,
+                    p1.orientation.z, p1.orientation.w
+                ],
+                [
+                    p2.orientation.x, p2.orientation.y,
+                    p2.orientation.z, p2.orientation.w
+                ]
+            ])
+        )([ratio]).as_quat()[0]
+
         return TrajectoryPoint(
             Point(
-                p1.x + (p2.x - p1.x) * ratio,
-                p1.y + (p2.y - p1.y) * ratio,
-                p1.z + (p2.z - p1.z) * ratio
+                x = p1.x + (p2.x - p1.x) * ratio,
+                y = p1.y + (p2.y - p1.y) * ratio,
+                z = p1.z + (p2.z - p1.z) * ratio
             ),
             Quaternion(
-                *Slerp([0, 1.0], Rotation.from_quat([[p1.orientation.x, p1.orientation.y, p1.orientation.z, p1.orientation.w], [p2.orientation.x, p2.orientation.y, p2.orientation.z, p2.orientation.w]]))([ratio]).as_quat()[0]
+                x = _q[0],
+                y = _q[1],
+                z = _q[2],
+                w = _q[3]
             ),
             i = p1.i + (p2.i - p1.i) * ratio,
             t = p1.t + (p2.t - p1.t) * ratio,
