@@ -104,6 +104,7 @@ class RunNode(Node):
         self.time_last = self.get_time()
         self.time_elapsed = 0.0
         self.passed_half = False
+        self.pub_track = 0
 
         # Intialize controllers
         for key, ctrl in control_methods.items():
@@ -129,6 +130,7 @@ class RunNode(Node):
         self.traj_point = self.Publisher("/trajectory/current_point", PointStamped, queue_size = 1)
         self.back_axle = self.Publisher("/trajectory/back_axle", PointStamped, queue_size = 1)
         self.traj_point_str = self.Publisher("/trajectory/current_point/string", String, queue_size = 1)
+        self.pub_track_error = self.Publisher("/track_error", String, queue_size = 1)
 
 
         # Subscribers
@@ -180,7 +182,7 @@ class RunNode(Node):
         data -- autoware_auto_msgs/Trajectory
         """
         self.saved_trajectory = Trajectory(data, self.Vehicle)
-        self.saved_errors = [ [] for _ in range(self.saved_trajectory.length) ]
+        self.saved_errors = [[] for _ in range(self.saved_trajectory.length)]
         self.loginfo("Received trajectory.")
         self._controller.process_trajectory(self, self.saved_trajectory)
 
@@ -239,11 +241,37 @@ class RunNode(Node):
 
             if self.passed_half and nearest_point_id < 50:
                 self.passed_half = False
-                self.logger.info(",".join([
-                    "%s" % numpy.mean(self.saved_errors[i])
-                    for i in range(self.saved_trajectory.length)
-                ]))
-                self.saved_errors = [ [] for _ in range(self.saved_trajectory.length) ]
+
+                # Publish the track error only when there are not many nans
+                if (
+                    sum([1 for el in self.saved_errors if len(el) == 0])
+                    < (self.saved_trajectory.length * 0.05)
+                ):
+
+                    # # New version, publish minimum of errors
+                    mins = []
+
+                    for i in range(self.saved_trajectory.length):
+                        # Minimum is the one closest to zero (from both sides!)
+                        if len(self.saved_errors[i]) < 1:
+                            mins.append("0.0")
+                        else:
+                            mins.append(
+                                "%s" % min(self.saved_errors[i], key = abs)
+                            )
+
+                    self.logger.info(",".join(mins))
+
+                    # Skip the first loop
+                    if self.pub_track > 1:
+                        self.pub_track_error.publish(
+                            String(data = ",".join(mins))
+                        )
+
+                    self.pub_track += 1
+                    self.saved_errors = [
+                        [] for _ in range(self.saved_trajectory.length)
+                    ]
 
             if not self.passed_half and nearest_point_id > 200:
                 self.passed_half = True
@@ -272,7 +300,12 @@ class RunNode(Node):
             )
 
             self.saved_errors[nearest_point_id].append(
-                point_distance(self.Vehicle, self.saved_trajectory.get(nearest_point_id)) * determine_side(self.saved_trajectory.get(nearest_point_id), self.saved_trajectory.get(nearest_point_id+1), self.Vehicle)
+                self.saved_trajectory.lateral_distance(self.Vehicle)
+                * determine_side(
+                    self.saved_trajectory.get(nearest_point_id),
+                    self.saved_trajectory.get(nearest_point_id + 1),
+                    self.Vehicle
+                )
             )
 
             ## Obtain action values
