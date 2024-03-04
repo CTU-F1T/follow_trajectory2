@@ -144,6 +144,19 @@ class Trajectory(object):
         return len(self.trajectory)
 
 
+    def lateral_distance(self, p):
+        """Compute distance of 'p' to the trajectory.
+
+        Arguments:
+        p -- point for distance computation, Point
+
+        Returns:
+        dist -- distance to the trajectory, float
+        """
+        _, tp = self.get_closest_point(p, interpolate = True)
+        return tp.distanceTo(p)
+
+
     def time_distance(self, i, j, bidirectional = False):
         """Computes the time distance between two point of the trajectory.
 
