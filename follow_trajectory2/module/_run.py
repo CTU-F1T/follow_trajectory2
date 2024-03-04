@@ -99,6 +99,7 @@ class RunNode(Node):
 
 
         # Internal variables
+        self.saved_trajectory = None
         self.Vehicle = Vehicle()
         self.running = False
         self.time_last = self.get_time()
