@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 # _utils.py
 """Utilities for 'follow_trajectory2'.
+
+Used in many other project as well.
 """
 
 import math
 
-from geometry_msgs.msg import Point
-
 
 def point_distance(a, b):
-    """Computes distance between two points in 2D.
+    """Compute distance between two points in 2D.
 
     Arguments:
     a -- first point, class with '.x': float and '.y': float,
@@ -24,11 +24,13 @@ def point_distance(a, b):
 
 
 def determine_side(a, b, p):
-    """ Determines, if car is on right side of trajectory or on left side
+    """Determine, if car is on right side of trajectory or on left side.
+
     Arguments:
-         a - point of trajectory, which is nearest to the car, geometry_msgs.msg/Point
-         b - next trajectory point, geometry_msgs.msg/Point
-         p - actual position of car, geometry_msgs.msg/Point
+    a -- point of trajectory, which is nearest to the car,
+         geometry_msgs.msg/Point
+    b -- next trajectory point, geometry_msgs.msg/Point
+    p -- actual position of car, geometry_msgs.msg/Point
 
     Returns:
          -1 if car is on left side of trajectory
@@ -45,24 +47,29 @@ def determine_side(a, b, p):
 
 
 def angle_between_vectors(p1, p2, p3, p4):
-    """Finds angle between two vectors each defined by two points
-    Args:
-        p1 - first point of first vector, geometry_msgs.msg/Point
-        p2 - second point of first vector, geometry_msgs.msg/Point
-        p3 - first point of second vector, geometry_msgs.msg/Point
-        p4 - second point of second vector, geometry_msgs.msg/Point
+    """Find angle between two vectors each defined by two points.
+
+    Arguments:
+    p1 -- first point of first vector, geometry_msgs.msg/Point
+    p2 -- second point of first vector, geometry_msgs.msg/Point
+    p3 -- first point of second vector, geometry_msgs.msg/Point
+    p4 -- second point of second vector, geometry_msgs.msg/Point
 
     Returns:
         ret - angle between two vectors, radians, float
     """
     w1 = [p2.x - p1.x, p2.y - p1.y]
     w2 = [p4.x - p3.x, p4.y - p3.y]
-    temp = (w1[0] * w2[0] + w1[1] * w2[1]) / (
-            (math.sqrt(math.pow(w1[0], 2) + math.pow(w1[1], 2))) *
-            (math.sqrt(math.pow(w2[0], 2) + math.pow(w2[1], 2))))
+    temp = (
+        (w1[0] * w2[0] + w1[1] * w2[1])
+        / (
+            (math.sqrt(math.pow(w1[0], 2) + math.pow(w1[1], 2)))
+            * (math.sqrt(math.pow(w2[0], 2) + math.pow(w2[1], 2)))
+        )
+    )
     try:
         ret = math.acos(temp)
-    except:
+    except ValueError:
         print (p1, p2, p3, p4)
         raise
 
@@ -81,7 +88,8 @@ def calc_rotation(q):
     Note: This equals to:
     ```python
 
-    # Source: https://answers.ros.org/question/196149/how-to-rotate-vector-by-quaternion-in-python/
+    # Source:
+    # https://answers.ros.org/question/196149/how-to-rotate-vector-by-quaternion-in-python/
     from tf.transformations import quaternion_multiply, \
                                    quaternion_conjugate
 
@@ -105,9 +113,21 @@ def calc_rotation(q):
     p1y = 0
     p1z = 0
 
-    p2x = q.w * q.w * p1x + 2 * q.y * q.w * p1z - 2 * q.z * q.w * p1y + q.x * q.x * p1x + 2 * q.y * q.x * p1y + 2 * q.z * q.x * p1z - q.z * q.z * p1x - q.y * q.y * p1x
-    p2y = 2 * q.x * q.y * p1x + q.y * q.y * p1y + 2 * q.z * q.y * p1z + 2 * q.w * q.z * p1x - q.z * q.z * p1y + q.w * q.w * p1y - 2 * q.x * q.w * p1z - q.x * q.x * p1y
-    p2z = 2 * q.x * q.z * p1x + 2 * q.y * q.z * p1y + q.z * q.z * p1z - 2 * q.w * q.y * p1x - q.y * q.y * p1z + 2 * q.w * q.x * p1y - q.x * q.x * p1z + q.w * q.w * p1z
+    p2x = (
+        q.w * q.w * p1x + 2 * q.y * q.w * p1z - 2 * q.z * q.w * p1y
+        + q.x * q.x * p1x + 2 * q.y * q.x * p1y + 2 * q.z * q.x * p1z
+        - q.z * q.z * p1x - q.y * q.y * p1x
+    )
+    p2y = (
+        2 * q.x * q.y * p1x + q.y * q.y * p1y + 2 * q.z * q.y * p1z
+        + 2 * q.w * q.z * p1x - q.z * q.z * p1y + q.w * q.w * p1y
+        - 2 * q.x * q.w * p1z - q.x * q.x * p1y
+    )
+    p2z = (
+        2 * q.x * q.z * p1x + 2 * q.y * q.z * p1y + q.z * q.z * p1z
+        - 2 * q.w * q.y * p1x - q.y * q.y * p1z + 2 * q.w * q.x * p1y
+        - q.x * q.x * p1z + q.w * q.w * p1z
+    )
 
     return [p2x, p2y, p2z]
 
@@ -126,7 +146,8 @@ def quaternion_to_yaw(q):
         np.arctan2(trajectory_file["orientation.z"],trajectory_file["orientation.w"])*2
     But this version works in general.
 
-    I think that this could be also done using tf.transformations.euler_from_quaternion().
+    I think that this could be also done using
+    tf.transformations.euler_from_quaternion().
     """
     siny_cosp = 2 * (q.w * q.z + q.x * q.y)
     cosy_cosp = 1 - 2 * (q.y * q.y + q.z * q.z)

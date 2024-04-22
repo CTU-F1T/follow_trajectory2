@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # trajectory.py
 """Class for handling and storing the Trajectory.
+
+Similar to Path but requires time information.
 """
 ######################
 # Imports & Globals
@@ -11,15 +13,27 @@ import numpy
 
 from autopsy.node import ROS_VERSION
 
-from ._utils import *
+from ._utils import (
+    angle_between_vectors,
+    point_distance,
+    quaternion_to_yaw,
+)
 
-from geometry_msgs.msg import Point, Quaternion
+from geometry_msgs.msg import (
+    Point,
+    Quaternion,
+)
 
-from scipy.spatial.transform import Slerp, Rotation
+from scipy.spatial.transform import (
+    Slerp,
+    Rotation,
+)
 
 
 # Lambdas
-obtain = lambda t, field: numpy.asarray([ getattr(tpoint, field) for tpoint in t ] + [ getattr(t[0], field) ])
+obtain = lambda t, field: numpy.asarray(  # noqa: E731
+    [getattr(tpoint, field) for tpoint in t] + [getattr(t[0], field)]
+)
 
 
 ######################
@@ -27,6 +41,7 @@ obtain = lambda t, field: numpy.asarray([ getattr(tpoint, field) for tpoint in t
 ######################
 
 class Trajectory(object):
+    """Object for representing a trajectory for car."""
 
     trajectory = None
     endpoint_time = None
@@ -62,9 +77,13 @@ class Trajectory(object):
 
         self.header = msg.header
 
-        _oz = numpy.asarray([ tpoint.pose.orientation.z for tpoint in msg.points ])
-        _ow = numpy.asarray([ tpoint.pose.orientation.w for tpoint in msg.points ])
-        _theta = numpy.unwrap(numpy.arctan2(_oz, _ow)*2)
+        _oz = numpy.asarray([
+            tpoint.pose.orientation.z for tpoint in msg.points
+        ])
+        _ow = numpy.asarray([
+            tpoint.pose.orientation.w for tpoint in msg.points
+        ])
+        _theta = numpy.unwrap(numpy.arctan2(_oz, _ow) * 2)
 
         if ROS_VERSION == 1:
             self.trajectory = [
@@ -73,7 +92,10 @@ class Trajectory(object):
                     tpoint.pose.orientation,
                     i = i,
                     t = tpoint.time_from_start.to_sec(),
-                    v = math.sqrt(tpoint.longitudinal_velocity_mps**2 + tpoint.lateral_velocity_mps**2),
+                    v = math.sqrt(
+                        tpoint.longitudinal_velocity_mps**2
+                        + tpoint.lateral_velocity_mps**2
+                    ),
                     a = tpoint.acceleration_mps2,
                     k = math.tan(tpoint.front_wheel_angle_rad) / vehicle.L,
                     delta = tpoint.front_wheel_angle_rad,
@@ -86,8 +108,13 @@ class Trajectory(object):
                     tpoint.pose.position,
                     tpoint.pose.orientation,
                     i = i,
-                    t = tpoint.time_from_start.sec + (tpoint.time_from_start.nanosec / 1.0e9),
-                    v = math.sqrt(tpoint.longitudinal_velocity_mps**2 + tpoint.lateral_velocity_mps**2),
+                    t = tpoint.time_from_start.sec + (
+                        tpoint.time_from_start.nanosec / 1.0e9
+                    ),
+                    v = math.sqrt(
+                        tpoint.longitudinal_velocity_mps**2
+                        + tpoint.lateral_velocity_mps**2
+                    ),
                     a = tpoint.acceleration_mps2,
                     k = math.tan(tpoint.front_wheel_angle_rad) / vehicle.L,
                     delta = tpoint.front_wheel_angle_rad,
@@ -96,7 +123,11 @@ class Trajectory(object):
             ]
 
         if self.trajectory[-1].t is not None:
-            self.endpoint_time = self.trajectory[-1].t + point_distance(self.trajectory[-1], self.trajectory[0]) * 2 / (self.trajectory[0].v + self.trajectory[-1].v)
+            self.endpoint_time = (
+                self.trajectory[-1].t
+                + point_distance(self.trajectory[-1], self.trajectory[0]) * 2
+                / (self.trajectory[0].v + self.trajectory[-1].v)
+            )
 
         if hasattr(self.get(0), "x"):
             self._x = obtain(self.trajectory, "x")
@@ -104,15 +135,28 @@ class Trajectory(object):
             self._z = obtain(self.trajectory, "z")
 
         if hasattr(self.get(0), "orientation"):
-            self._ox = numpy.asarray([ tpoint.orientation.x for tpoint in self.trajectory ] + [ self.get(0).orientation.x ])
-            self._oy = numpy.asarray([ tpoint.orientation.y for tpoint in self.trajectory ] + [ self.get(0).orientation.y ])
-            self._oz = numpy.asarray([ tpoint.orientation.z for tpoint in self.trajectory ] + [ self.get(0).orientation.z ])
-            self._ow = numpy.asarray([ tpoint.orientation.w for tpoint in self.trajectory ] + [ self.get(0).orientation.w ])
+            self._ox = numpy.asarray(
+                [tpoint.orientation.x for tpoint in self.trajectory]
+                + [self.get(0).orientation.x]
+            )
+            self._oy = numpy.asarray(
+                [tpoint.orientation.y for tpoint in self.trajectory]
+                + [self.get(0).orientation.y]
+            )
+            self._oz = numpy.asarray(
+                [tpoint.orientation.z for tpoint in self.trajectory]
+                + [self.get(0).orientation.z]
+            )
+            self._ow = numpy.asarray(
+                [tpoint.orientation.w for tpoint in self.trajectory]
+                + [self.get(0).orientation.w]
+            )
 
         self._i = obtain(self.trajectory, "i")
         self._t = obtain(self.trajectory, "t")
         if self._t[0] is not None:
-            # In fact, this is the repeated first point. This replication is done by 'obtain' lambda function.
+            # In fact, this is the repeated first point. This replication
+            # is done by 'obtain' lambda function.
             self._t[-1] = self.endpoint_time
         self._k = obtain(self.trajectory, "k")
         self._v = obtain(self.trajectory, "v")
@@ -158,7 +202,7 @@ class Trajectory(object):
 
 
     def time_distance(self, i, j, bidirectional = False):
-        """Computes the time distance between two point of the trajectory.
+        """Compute the time distance between two point of the trajectory.
 
         Arguments:
         i -- index of the first point, int
@@ -210,15 +254,20 @@ class Trajectory(object):
         TODO: Solve the endpoints as they are not properly used.
         """
         if self._t[0] is None:
-            raise ValueError("Unable to find time-closest point as trajectory lacks timestamps.")
+            raise ValueError(
+                "Unable to find time-closest point as trajectory lacks "
+                "timestamps."
+            )
 
-        _distances = numpy.sqrt(numpy.power(self._t - (time % max(self._t)), 2))
+        _distances = numpy.sqrt(
+            numpy.power(self._t - (time % max(self._t)), 2)
+        )
         _min_i = numpy.argmin(_distances)
         return _distances[_min_i], _min_i
 
 
     def get_closest_point(self, position, interpolate = False):
-        """Find and obtain the closest point on the trajectory to the specified position.
+        """Obtain the closest point on the trajectory to the specified position.
 
         Arguments:
         position -- position to be closest to
@@ -241,10 +290,14 @@ class Trajectory(object):
         # Inspired by 'trajectoryClosestIndex' from ng_trajectory.
         # Since the points can be isochronal and not equidistant,
         #  we cannot rely on having the second point 'second closest'.
-        alpha = angle_between_vectors(self.get(_min_i), self.get(_min_i + 1), self.get(_min_i), position)
-        beta = angle_between_vectors(self.get(_min_i), self.get(_min_i - 1), self.get(_min_i), position)
+        alpha = angle_between_vectors(
+            self.get(_min_i), self.get(_min_i + 1), self.get(_min_i), position
+        )
+        beta = angle_between_vectors(
+            self.get(_min_i), self.get(_min_i - 1), self.get(_min_i), position
+        )
 
-        if alpha < (math.pi/2) and alpha < beta:
+        if alpha < (math.pi / 2) and alpha < beta:
             """
                                   (position)
                                     /
@@ -252,11 +305,14 @@ class Trajectory(object):
                            beta   /  alpha
                                  /
             (_min_i-1)--------(_min_i)-------------(_min_i+1)
-            """
-            ref = self.get(_min_i+1)
-            ratio = ( _distances[_min_i] * math.cos(alpha) ) / (self.get(_min_i).distanceTo(self.get(_min_i+1)))
+            """  # noqa: W605
+            ref = self.get(_min_i + 1)
+            ratio = (
+                (_distances[_min_i] * math.cos(alpha))
+                / (self.get(_min_i).distanceTo(self.get(_min_i + 1)))
+            )
             index = _min_i + ratio
-        elif beta < (math.pi/2) and beta < alpha:
+        elif beta < (math.pi / 2) and beta < alpha:
             """
                          (position)
                               \
@@ -264,9 +320,12 @@ class Trajectory(object):
                          beta   \   alpha
                                  \
             (_min_i-1)--------(_min_i)-------------(_min_i+1)
-            """
-            ref = self.get(_min_i-1)
-            ratio = ( _distances[_min_i] * abs(math.cos(alpha)) ) / (self.get(_min_i).distanceTo(self.get(_min_i-1)))
+            """  # noqa: W605
+            ref = self.get(_min_i - 1)
+            ratio = (
+                (_distances[_min_i] * abs(math.cos(alpha)))
+                / (self.get(_min_i).distanceTo(self.get(_min_i - 1)))
+            )
             index = _min_i - ratio
         else:
             """
@@ -280,13 +339,15 @@ class Trajectory(object):
                              beta      ----
                                            ---
                                               --(position)
-            """
+            """  # noqa: W605
             return _min_i, self.get(_min_i)
 
         if ratio > 1.0:
             # I think that this is not possible.
             print (position, _min_i, self.get(_min_i), alpha, beta, ref, ratio)
-            raise ValueError("Ratio exceeded expected value: %f !<= 1.0" % ratio)
+            raise ValueError(
+                "Ratio exceeded expected value: %f !<= 1.0" % ratio
+            )
 
         return index, TrajectoryPoint.interpolate(self.get(_min_i), ref, ratio)
 
@@ -299,28 +360,39 @@ class Trajectory(object):
 
         Note: It is necessary to use TrajectoryA with time.
         """
-
         if self.get(0).t is None:
-            raise ValueError("Unable to reinterpolate the trajectory as the time is missing.")
+            raise ValueError(
+                "Unable to reinterpolate the trajectory "
+                "as the time is missing."
+            )
 
 
         t_interp = numpy.arange(0, self._t[-1], dt)
-        ##  might need to add another time point to properly connect last point of the trajectory to the first one
+        # Note: Might need to add another time point to properly connect
+        #       last point of the trajectory to the first one.
 
         self._x = numpy.interp(t_interp, self._t, self._x)
         self._y = numpy.interp(t_interp, self._t, self._y)
         self._z = numpy.interp(t_interp, self._t, self._z)
 
         # Interpolate Quaternions using Slerp
-        _o = Slerp(self._t, Rotation.from_quat(numpy.vstack((self._ox, self._oy, self._oz, self._ow)).T) )(t_interp)
-        (self._ox, self._oy, self._oz, self._ow) = (numpy.hsplit(_o.as_quat(), 4))
+        _o = Slerp(
+            self._t,
+            Rotation.from_quat(
+                numpy.vstack((self._ox, self._oy, self._oz, self._ow)).T
+            )
+        )(t_interp)
+
+        (self._ox, self._oy, self._oz, self._ow) = (
+            numpy.hsplit(_o.as_quat(), 4)
+        )
 
         self._i = numpy.interp(t_interp, self._t, self._i)
         self._k = numpy.interp(t_interp, self._t, self._k)
         self._v = numpy.interp(t_interp, self._t, self._v)
         self._a = numpy.interp(t_interp, self._t, self._a)
 
-        #self._theta = numpy.interp(t_interp, self._t, self._theta)
+        #  self._theta = numpy.interp(t_interp, self._t, self._theta)
         # Consider: self._o.as_euler("xyz")
         self._theta = numpy.asarray(
             [
@@ -347,7 +419,17 @@ class Trajectory(object):
                 a = _a,
                 theta = _theta,
                 delta = _delta,
-            ) for (_x, _y, _z, _ox, _oy, _oz, _ow, _i, _t, _k, _v, _a, _theta, _delta) in zip(self._x, self._y, self._z, self._ox, self._oy, self._oz, self._ow, self._i, self._t, self._k, self._v, self._a, self._theta, self._delta)
+            ) for (
+                _x, _y, _z,
+                _ox, _oy, _oz, _ow,
+                _i, _t, _k,
+                _v, _a, _theta, _delta
+            ) in zip(
+                self._x, self._y, self._z,
+                self._ox, self._oy, self._oz, self._ow,
+                self._i, self._t, self._k,
+                self._v, self._a, self._theta, self._delta
+            )
         ]
 
 
@@ -356,8 +438,24 @@ class Trajectory(object):
 ######################
 
 class TrajectoryPoint(Point):
+    """Object representing a point in a Trajectory."""
 
     def __init__(self, point = None, quaternion = None, **kwargs):
+        """Initialize the TrajectoryPoint.
+
+        Arguments:
+        point -- location of a point, geometry_msgs.msg/Point
+        quaternion -- rotation in the point, geometry_msgs.msg/Quaternion
+
+        Keyword optional arguments:
+        i -- index of the point, int
+        v -- [m.s^-1] velocity in the point, float
+        a -- [m.s^-2] acceleration in the point, float
+        k -- [m^-1] curvature of the path in the point, float
+        t -- [s] time when the car should be at this point, float
+        delta -- [rad] car steering, float
+        theta -- [rad] car orientation, float
+        """
         super(TrajectoryPoint, self).__init__()
 
         if point is not None:
@@ -378,12 +476,20 @@ class TrajectoryPoint(Point):
 
     @property
     def yaw(self):
-        return quaternion_to_yaw(self.orientation) if self.orientation is not None else 0.0
+        """Obtain car orientation from the quaternion."""
+        return (
+            quaternion_to_yaw(self.orientation)
+            if self.orientation is not None else 0.0
+        )
 
 
     def distanceTo(self, other):
         """Distance to different point."""
-        return ((other.x - self.x)**2 + (other.y - self.y)**2 + (other.z - self.z)**2)**0.5
+        return (
+            (other.x - self.x)**2
+            + (other.y - self.y)**2
+            + (other.z - self.z)**2
+        )**0.5
 
 
     @staticmethod
@@ -435,25 +541,29 @@ class TrajectoryPoint(Point):
 
 
     def __str__(self):
+        """Represent the point as a string."""
         ret = []
 
-        ret += [ ("x", self.x), ("y", self.y), ("z", self.z) ]
+        ret += [("x", self.x), ("y", self.y), ("z", self.z)]
 
         if self.orientation is not None:
-            ret += [ ("ow", self.orientation.w), ("ox", self.orientation.x), ("oy", self.orientation.y), ("oz", self.orientation.z) ]
+            ret += [
+                ("ow", self.orientation.w), ("ox", self.orientation.x),
+                ("oy", self.orientation.y), ("oz", self.orientation.z)
+            ]
 
         if self.i is not None:
-            ret += [ ("i", self.i) ]
+            ret += [("i", self.i)]
 
-        ret += [ ("v", self.v), ("a", self.a), ("k", self.k) ]
+        ret += [("v", self.v), ("a", self.a), ("k", self.k)]
 
         if self.t is not None:
-            ret += [ ("t", self.t) ]
+            ret += [("t", self.t)]
 
         if self.delta is not None:
-            ret += [ ("delta", self.delta) ]
+            ret += [("delta", self.delta)]
 
         if self.theta is not None:
-            ret += [ ("theta", self.theta) ]
+            ret += [("theta", self.theta)]
 
         return str(ret)

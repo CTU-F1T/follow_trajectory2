@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # run.py
 """Entrypoint for 'follow_trajectory2'.
+
+Shared for both ROS versions.
 """
 
 from autopsy.core import Core
@@ -10,8 +12,7 @@ from follow_trajectory2._run import RunNode
 
 
 def main(args = None):
-    """Starts a ROS node, registers the callbacks."""
-
+    """Start a ROS node, register the callbacks."""
     if args is None:
         args = sys.argv
 

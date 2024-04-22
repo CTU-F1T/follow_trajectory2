@@ -1,19 +1,21 @@
 #!/usr/bin/env python
 # _run.py
 """Node for following a planned trajectory of the car.
+
+Creates a ROS node with all required callbacks and publishers.
 """
 ######################
 # Imports & Globals
 ######################
-
-import numpy
 
 from autopsy.reconfigure import ParameterServer
 from autopsy.node import Node, ROS_VERSION
 
 from ._path import Path as PathO
 from ._trajectory import Trajectory
-from ._utils import *
+from ._utils import (
+    determine_side,
+)
 from ._vehicle import Vehicle
 
 import logging
@@ -22,41 +24,40 @@ if ROS_VERSION == 1:
     import rospy
 
     def update_parameters(p):
+        """Update the node parameters from the Parameter server."""
         if rospy.has_param("~"):
             p.update(rospy.get_param("~"), only_existing = True)
 else:
-    import rclpy
-    from rclpy.qos import *
+    from rclpy.qos import (
+        QoSProfile,
+        ReliabilityPolicy,
+        DurabilityPolicy,
+    )
 
     def update_parameters(p):
+        """Fake the update of the parameters."""
         pass
 
 
-# Dynamic module list of Controllers
-from enum import Enum
-
-import follow_trajectory2.module.controllers as controllers
-
-control_methods = {}
-
-class ControlMethod(Enum):
-    pass
-
-for module in controllers.__all__:
-    _ctrl = __import__("follow_trajectory2.controllers." + module, fromlist=["Controller", "name"])
-    _d = {cm.name: cm.value for cm in ControlMethod}
-    _d.update({_ctrl.name: _ctrl.value})
-    ControlMethod = Enum("ControlMethod", _d)
-    control_methods[_ctrl.value] = _ctrl.Controller
-
-
 # Message Types
-from command_msgs.msg import CommandArrayStamped, Command, CommandParameter
-from geometry_msgs.msg import PointStamped
-from std_msgs.msg import Bool, Header
-from nav_msgs.msg import Odometry, Path
-from std_msgs.msg import String
 from autoware_auto_msgs.msg import Trajectory as TrajectoryA
+from command_msgs.msg import (
+    CommandArrayStamped, Command, CommandParameter
+)
+from geometry_msgs.msg import (
+    Point,
+    PointStamped,
+)
+from nav_msgs.msg import (
+    Odometry,
+    Path,
+)
+from std_msgs.msg import (
+    Bool,
+    Header,
+    String,
+)
+
 
 try:
     from vesc_msgs.msg import VescStateStamped
@@ -66,16 +67,48 @@ except ImportError:
     USE_VESC = False
 
 
+# Dynamic module list of Controllers
+from enum import Enum
+
+import follow_trajectory2.module.controllers as controllers
+
+control_methods = {}
+
+
+class ControlMethod(Enum):
+    """Enum to store the available control methods."""  # noqa: D204
+    pass
+
+
+for module in controllers.__all__:
+    _ctrl = __import__(
+        "follow_trajectory2.controllers." + module,
+        fromlist=["Controller", "name"]
+    )
+    _d = {cm.name: cm.value for cm in ControlMethod}
+    _d.update({_ctrl.name: _ctrl.value})
+    ControlMethod = Enum("ControlMethod", _d)
+    control_methods[_ctrl.value] = _ctrl.Controller
+
+
 # Global parameters
 PARAMETERS = [
     ("method", ControlMethod),
 
-    ## Common variables
+    # # Common variables
     # Acceleration limits
-    ("max_fwd_acc", {"default": 6.0, "min": 0.0, "max": 10.0, "description": "Maximum forward acceleration [m.s^-2]", "ns": "default"}),
-    ("max_brk_dcc", {"default": -6.0, "min": -10.0, "max": 0.0, "description": "Maximum backward deceleration [m.s^-2]", "ns": "default"}),
+    ("max_fwd_acc", {
+        "default": 6.0, "min": 0.0, "max": 10.0,
+        "description": "Maximum forward acceleration [m.s^-2]",
+        "ns": "default"
+    }),
+    ("max_brk_dcc", {
+        "default": -6.0, "min": -10.0, "max": 0.0,
+        "description": "Maximum backward deceleration [m.s^-2]",
+        "ns": "default"
+    }),
 
-    ## Others
+    # # Others
     ("use_odom_speed", {
         "default": False,
         "description": "When True, speed from the Odometry message "
@@ -89,15 +122,19 @@ PARAMETERS = [
 ######################
 
 class RunNode(Node):
+    """Class for creating a ROS node."""
 
     def __init__(self):
+        """Initialize the ROS node."""
         super(Node, self).__init__("follow_trajectory2")
 
-        logging.basicConfig(filename="follow_trajectory2.log",
-                            filemode='a',
-                            format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
-                            datefmt='%H:%M:%S',
-                            level=logging.DEBUG)
+        logging.basicConfig(
+            filename="follow_trajectory2.log",
+            filemode='a',
+            format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
+            datefmt='%H:%M:%S',
+            level=logging.DEBUG
+        )
 
         logging.info("FollowTrajectory2")
 
@@ -128,57 +165,100 @@ class RunNode(Node):
 
 
         self._controller = control_methods.get(self.P.method.value)
-        self.loginfo("Using controller '%d': %s" % (self.P.method.value, ControlMethod(self.P.method.value).name))
+        self.loginfo(
+            "Using controller '%d': %s"
+            % (self.P.method.value, ControlMethod(self.P.method.value).name)
+        )
         self.P.method.callback = self.change_controller
 
 
         # Publishers
-        self.pub_command = self.Publisher("/command", CommandArrayStamped, queue_size = 1)
-        self.traj_point = self.Publisher("/trajectory/current_point", PointStamped, queue_size = 1)
-        self.back_axle = self.Publisher("/trajectory/back_axle", PointStamped, queue_size = 1)
-        self.traj_point_str = self.Publisher("/trajectory/current_point/string", String, queue_size = 1)
-        self.pub_track_error = self.Publisher("/track_error", String, queue_size = 1)
+        self.pub_command = self.Publisher(
+            "/command", CommandArrayStamped, queue_size = 1
+        )
+        self.traj_point = self.Publisher(
+            "/trajectory/current_point", PointStamped, queue_size = 1
+        )
+        self.back_axle = self.Publisher(
+            "/trajectory/back_axle", PointStamped, queue_size = 1
+        )
+        self.traj_point_str = self.Publisher(
+            "/trajectory/current_point/string", String, queue_size = 1
+        )
+        self.pub_track_error = self.Publisher(
+            "/track_error", String, queue_size = 1
+        )
 
 
         # Subscribers
         # Odometry uses some tweaks available only in ROS1.
         if ROS_VERSION == 1:
-            rospy.Subscriber("/odom", Odometry, self.callback_odom, queue_size = 1, buff_size = 1400, tcp_nodelay = False)
-        else: # ROS_VERSION == 2
-            self.create_subscription(Odometry, "/odom", self.callback_odom, qos_profile = QoSProfile(depth = 1, durability = DurabilityPolicy.VOLATILE, reliability = ReliabilityPolicy.BEST_EFFORT))
+            rospy.Subscriber(
+                "/odom", Odometry, self.callback_odom,
+                queue_size = 1, buff_size = 1400, tcp_nodelay = False
+            )
+        else:  # ROS_VERSION == 2
+            self.create_subscription(
+                Odometry, "/odom", self.callback_odom,
+                qos_profile = QoSProfile(
+                    depth = 1,
+                    durability = DurabilityPolicy.VOLATILE,
+                    reliability = ReliabilityPolicy.BEST_EFFORT
+                )
+            )
 
         self.Subscriber("/path", Path, self.callback_path)
-        self.create_subscription(TrajectoryA, "/trajectory", self.callback_trajectory, qos_profile = QoSProfile(depth = 1, durability = DurabilityPolicy.TRANSIENT_LOCAL))
-        self.create_subscription(Bool, "/eStop", self.callback_estop, qos_profile = QoSProfile(depth = 1, reliability = ReliabilityPolicy.BEST_EFFORT))
+        self.create_subscription(
+            TrajectoryA, "/trajectory", self.callback_trajectory,
+            qos_profile = QoSProfile(
+                depth = 1, durability = DurabilityPolicy.TRANSIENT_LOCAL
+            )
+        )
+        self.create_subscription(
+            Bool, "/eStop", self.callback_estop,
+            qos_profile = QoSProfile(
+                depth = 1, reliability = ReliabilityPolicy.BEST_EFFORT
+            )
+        )
 
         if USE_VESC:
             if ROS_VERSION == 1:
-                self.Subscriber("/sensors/core", VescStateStamped, self.callback_vesc)
-            else: # ROS_VERSION == 2
-                self.create_subscription(VescStateStamped, "/sensors/core", self.callback_vesc, qos_profile = QoSProfile(depth = 1, durability = DurabilityPolicy.VOLATILE, reliability = ReliabilityPolicy.BEST_EFFORT))
+                self.Subscriber(
+                    "/sensors/core", VescStateStamped, self.callback_vesc
+                )
+            else:  # ROS_VERSION == 2
+                self.create_subscription(
+                    VescStateStamped, "/sensors/core", self.callback_vesc,
+                    qos_profile = QoSProfile(
+                        depth = 1,
+                        durability = DurabilityPolicy.VOLATILE,
+                        reliability = ReliabilityPolicy.BEST_EFFORT
+                    )
+                )
 
-
-    ## Utils ##
+    #
+    # # Utils # #
     def get_time(self):
         """Obtain the current ROS time as float."""
         if ROS_VERSION == 1:
             return rospy.get_time()
-        else: # ROS_VERSION == 2
+        else:  # ROS_VERSION == 2
             # https://github.com/ros2/rclpy/issues/293
-            # 1e9 is float in Python 3, that leads to floating point error on division.
+            # 1e9 is float in Python 3, that leads to floating point error
+            # on division.
             return self.get_clock().now().nanoseconds / (10 ** 9)
 
     def get_time_now(self):
         """Obtain the current ROS timestamp."""
         if ROS_VERSION == 1:
             return rospy.Time.now()
-        else: # ROS_VERSION == 2
+        else:  # ROS_VERSION == 2
             return self.get_clock().now().to_msg()
 
-
-    ## Callbacks ##
+    #
+    # # Callbacks # #
     def callback_path(self, data):
-        """Callback on the Path message."""
+        """Handle the Path message."""
         self.saved_trajectory = PathO(data, self.Vehicle)
         self.loginfo("Received path.")
 
@@ -196,12 +276,15 @@ class RunNode(Node):
 
 
     def callback_estop(self, data):
-        """Callback on `auto start/stop`. Reset the Vehicle states.
+        """Handle `auto start/stop`. Reset the Vehicle states.
 
         Arguments:
         data -- std_msgs/Bool
         """
-        self.loginfo("Using controller '%d': %s" % (self.P.method.value, ControlMethod(self.P.method.value).name))
+        self.loginfo(
+            "Using controller '%d': %s"
+            % (self.P.method.value, ControlMethod(self.P.method.value).name)
+        )
         self.Vehicle.stop()
         self.time_last = self.get_time()
         self.running = not data.data
@@ -211,7 +294,7 @@ class RunNode(Node):
 
 
     def callback_vesc(self, data):
-        """Callback on VESC to obtain current speed of the vehicle.
+        """Obtain current speed of the vehicle from VESC.
 
         Arguments:
         data -- vesc_msgs/VescStateStamped
@@ -220,12 +303,11 @@ class RunNode(Node):
 
 
     def callback_odom(self, data):
-        """Callback on the Odometry message.
+        """Handle the Odometry message.
 
         Arguments:
         data -- nav_msgs/Odometry
         """
-
         if not self.running:
             return
 
@@ -244,8 +326,10 @@ class RunNode(Node):
         #
         if self.saved_trajectory is not None:
 
-            ## ... and now we continue in case that everything is OK.
-            nearest_point_id, point = self._controller.select_point(self, self.saved_trajectory)
+            # # ... and now we continue in case that everything is OK.
+            nearest_point_id, point = self._controller.select_point(
+                self, self.saved_trajectory
+            )
 
             if self.passed_half and nearest_point_id < 50:
                 self.passed_half = False
@@ -284,7 +368,7 @@ class RunNode(Node):
             if not self.passed_half and nearest_point_id > 200:
                 self.passed_half = True
 
-            ## Visualize the trajectory point + back axle position.
+            # # Visualize the trajectory point + back axle position.
             self.traj_point.publish(
                 PointStamped(
                     header = Header(frame_id="map"),
@@ -316,13 +400,15 @@ class RunNode(Node):
                 )
             )
 
-            ## Obtain action values
-            _velocity, _steer = self._controller.compute(self, point, self.saved_trajectory, nearest_point_id)
+            # # Obtain action values
+            _velocity, _steer = self._controller.compute(
+                self, point, self.saved_trajectory, nearest_point_id
+            )
 
             self.publish_action(_velocity, _steer)
 
-
-    ## Publishers ##
+    #
+    # # Publishers # #
     def publish_action(self, velocity, steering):
         """Publish the action values to the Drive-API.
 
@@ -335,7 +421,9 @@ class RunNode(Node):
                 Command(
                     command = "speed",
                     parameters = [
-                        CommandParameter(parameter = "metric", value = velocity)
+                        CommandParameter(
+                            parameter = "metric", value = velocity
+                        )
                     ]
                 ),
                 Command(
@@ -347,12 +435,16 @@ class RunNode(Node):
             ]
         ))
 
-
-    ## Reconfigure ##
+    #
+    # # Reconfigure # #
     def change_controller(self, controller_id):
+        """Handle the request to change the controller."""
         if controller_id in control_methods:
             self._controller = control_methods.get(controller_id)
-            self.loginfo("Using controller '%d': %s" % (controller_id, ControlMethod(controller_id).name))
+            self.loginfo(
+                "Using controller '%d': %s"
+                % (controller_id, ControlMethod(controller_id).name)
+            )
             return controller_id
         else:
             return self.P.method.value
