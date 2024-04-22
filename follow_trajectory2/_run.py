@@ -10,6 +10,11 @@ Creates a ROS node with all required callbacks and publishers.
 
 from autopsy.reconfigure import ParameterServer
 from autopsy.node import Node, ROS_VERSION
+from autopsy.qos import (
+    QoSProfile,
+    ReliabilityPolicy,
+    DurabilityPolicy,
+)
 
 from ._path import Path as PathO
 from ._trajectory import Trajectory
@@ -28,12 +33,6 @@ if ROS_VERSION == 1:
         if rospy.has_param("~"):
             p.update(rospy.get_param("~"), only_existing = True)
 else:
-    from rclpy.qos import (
-        QoSProfile,
-        ReliabilityPolicy,
-        DurabilityPolicy,
-    )
-
     def update_parameters(p):
         """Fake the update of the parameters."""
         pass
@@ -70,7 +69,7 @@ except ImportError:
 # Dynamic module list of Controllers
 from enum import Enum
 
-import follow_trajectory2.module.controllers as controllers
+import follow_trajectory2.controllers as controllers
 
 control_methods = {}
 

@@ -8,7 +8,7 @@ Used for storing the currently obtained states (not actions).
 # Imports & Globals
 ######################
 
-from controllers.utils import (
+from follow_trajectory2._utils import (
     calc_rotation,
     quaternion_to_yaw,
 )
