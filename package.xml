@@ -26,7 +26,7 @@
   <exec_depend condition="$ROS_VERSION == 1">rospy</exec_depend>
   <exec_depend condition="$ROS_VERSION == 2">rclpy</exec_depend>
 
-  <exec_depend version_gte="0.9.5">autopsy</exec_depend>
+  <exec_depend version_gte="0.10.0">autopsy</exec_depend>
 
   <!-- exec_depend message types -->
   <exec_depend>autoware_auto_msgs</exec_depend>
