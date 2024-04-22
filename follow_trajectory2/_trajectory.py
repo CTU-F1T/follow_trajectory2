@@ -323,7 +323,7 @@ class Trajectory(object):
             """  # noqa: W605
             ref = self.get(_min_i - 1)
             ratio = (
-                (_distances[_min_i] * abs(math.cos(alpha)))
+                (_distances[_min_i] * math.cos(beta))
                 / (self.get(_min_i).distanceTo(self.get(_min_i - 1)))
             )
             index = _min_i - ratio
