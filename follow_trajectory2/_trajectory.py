@@ -349,6 +349,10 @@ class Trajectory(object):
                 "Ratio exceeded expected value: %f !<= 1.0" % ratio
             )
 
+        if ratio < 0.0:
+            # This might happen on the first point of the trajectory
+            index = ref.i + (1 - ratio)
+
         return index, TrajectoryPoint.interpolate(self.get(_min_i), ref, ratio)
 
 
