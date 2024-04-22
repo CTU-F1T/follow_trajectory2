@@ -43,7 +43,7 @@ class ControlMethod(Enum):
     pass
 
 for module in controllers.__all__:
-    _ctrl = __import__("follow_trajectory2.module.controllers." + module, fromlist=["Controller", "name"])
+    _ctrl = __import__("follow_trajectory2.controllers." + module, fromlist=["Controller", "name"])
     _d = {cm.name: cm.value for cm in ControlMethod}
     _d.update({_ctrl.name: _ctrl.value})
     ControlMethod = Enum("ControlMethod", _d)
