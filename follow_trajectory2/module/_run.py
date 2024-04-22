@@ -57,7 +57,13 @@ from std_msgs.msg import Bool, Header
 from nav_msgs.msg import Odometry, Path
 from std_msgs.msg import String
 from autoware_auto_msgs.msg import Trajectory as TrajectoryA
-from vesc_msgs.msg import VescStateStamped
+
+try:
+    from vesc_msgs.msg import VescStateStamped
+    USE_VESC = True
+except ImportError:
+    print ("Unable to import 'vesc_msgs.msg'. VESC callback will be disabled.")
+    USE_VESC = False
 
 
 # Global parameters
@@ -145,10 +151,11 @@ class RunNode(Node):
         self.create_subscription(TrajectoryA, "/trajectory", self.callback_trajectory, qos_profile = QoSProfile(depth = 1, durability = DurabilityPolicy.TRANSIENT_LOCAL))
         self.create_subscription(Bool, "/eStop", self.callback_estop, qos_profile = QoSProfile(depth = 1, reliability = ReliabilityPolicy.BEST_EFFORT))
 
-        if ROS_VERSION == 1:
-            self.Subscriber("/sensors/core", VescStateStamped, self.callback_vesc)
-        else: # ROS_VERSION == 2
-            self.create_subscription(VescStateStamped, "/sensors/core", self.callback_vesc, qos_profile = QoSProfile(depth = 1, durability = DurabilityPolicy.VOLATILE, reliability = ReliabilityPolicy.BEST_EFFORT))
+        if USE_VESC:
+            if ROS_VERSION == 1:
+                self.Subscriber("/sensors/core", VescStateStamped, self.callback_vesc)
+            else: # ROS_VERSION == 2
+                self.create_subscription(VescStateStamped, "/sensors/core", self.callback_vesc, qos_profile = QoSProfile(depth = 1, durability = DurabilityPolicy.VOLATILE, reliability = ReliabilityPolicy.BEST_EFFORT))
 
 
     ## Utils ##
