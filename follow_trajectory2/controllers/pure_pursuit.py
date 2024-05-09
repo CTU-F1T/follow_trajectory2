@@ -1,14 +1,20 @@
 #!/usr/bin/env python
 # pure_pursuit.py
-"""Pure Pursuit implementation for trajectory tracking.
-"""
+"""Pure Pursuit implementation for trajectory tracking."""
 ######################
 # Imports & Globals
 ######################
 
-#import rospy
+import math
 
-from .controllerabc import *
+from .controllerabc import ControllerABC
+
+from follow_trajectory2._utils import (
+    angle_between_vectors,
+    constrain,
+    determine_side,
+    point_distance,
+)
 
 from autopsy.reconfigure import ParameterServer
 
@@ -18,16 +24,21 @@ if ROS_VERSION == 1:
     import rospy
 
     def update_parameters(p):
+        """Update the node parameters from the Parameter server."""
         if rospy.has_param("~"):
             p.update(rospy.get_param("~"), only_existing = True)
 else:
     def update_parameters(p):
+        """Fake the parameter update."""
         pass
 
 
 # Messages
 from std_msgs.msg import Header
-from geometry_msgs.msg import PointStamped
+from geometry_msgs.msg import (
+    Point,
+    PointStamped,
+)
 
 
 # Parameters
@@ -37,11 +48,23 @@ value = 1
 # Reconfigurable parameters
 PARAMETERS = [
     # Gain of the lookahead distance
-    ("k_const", {"default": 0.7, "min": 0.0, "max": 1.2, "description": "(PP) Gain of the lookahead distance [-]", "ns": "pp"}),
+    ("k_const", {
+        "default": 0.7, "min": 0.0, "max": 1.2,
+        "description": "(PP) Gain of the lookahead distance [-]",
+        "ns": "pp"
+    }),
 
     # Limits for the lookahead distance
-    ("max_lookfwd_dist", {"default": 3.0, "min": 0.0, "max": 5.0, "description": "Maximum lookahead distance [m]", "ns": "default"}),
-    ("min_lookfwd_dist", {"default": 0.35, "min": 0.0, "max": 5.0, "description": "Minimum lookahead distance [m]", "ns": "default"}),
+    ("max_lookfwd_dist", {
+        "default": 3.0, "min": 0.0, "max": 5.0,
+        "description": "Maximum lookahead distance [m]",
+        "ns": "default"
+    }),
+    ("min_lookfwd_dist", {
+        "default": 0.35, "min": 0.0, "max": 5.0,
+        "description": "Minimum lookahead distance [m]",
+        "ns": "default"
+    }),
 ]
 
 
@@ -50,11 +73,13 @@ PARAMETERS = [
 ######################
 
 class Controller(ControllerABC):
+    """Implementation of the original Pure Pursuit Controller."""
 
     # ParameterServer
     P2 = None
 
     def __init__(self, *args, **kwargs):
+        """Initialize the Controller."""
         super(Controller, self).__init__(*args, **kwargs)
 
         self.P2 = ParameterServer()
@@ -64,25 +89,29 @@ class Controller(ControllerABC):
 
         self.P2.reconfigure(namespace = "pure_pursuit", node = self.node)
 
-        self.pub_la_point = self.node.Publisher("trajectory/lookahead_point", PointStamped, queue_size = 1)
+        self.pub_la_point = self.node.Publisher(
+            "trajectory/lookahead_point", PointStamped, queue_size = 1
+        )
 
 
     def select_point(self, controller, trajectory):
+        """Select control point from the trajectory."""
         distance, i = trajectory.closest_point(self.Vehicle.rear_axle)
 
         return i, trajectory.get(i)
 
 
     def compute(self, controller, tpoint, trajectory, trajectory_i):
-
+        """Compute action values using selected point."""
         trajectory_i = int(trajectory_i)
         act_velocity = self.Vehicle.v
         distance = point_distance(tpoint, self.Vehicle)
 
 
-        ## Compute the velocity ##
+        # # Compute the velocity # #
         # Failsafe in case that we are too close to the point
-        # FIXME: Maybe this causes the 'wavy' behaviour on slightly waved sections?
+        # FIXME: Maybe this causes the 'wavy' behaviour on slightly
+        #        waved sections?
         if distance < 0.4:  # failsave
             desired_velocity = tpoint.v
         else:
@@ -94,7 +123,7 @@ class Controller(ControllerABC):
                 min(1 + 0.1 * (distance - 0.6), 1.8), 1.1)
 
 
-        ## Compute the acceleration required to reach the velocity ##
+        # # Compute the acceleration required to reach the velocity # #
         # FIXME: Consider how to use acceleration.
         v_diff = desired_velocity - act_velocity
         acc = constrain(
@@ -104,13 +133,13 @@ class Controller(ControllerABC):
         )
 
 
-        ## Estimated the velocity ##
+        # # Estimate the velocity # #
         # FIXME: Shouldn't we do this before changing the 'acc'?
         #        I mean if would make much MORE sense.
         act_velocity += acc * self.Vehicle.dt
 
 
-        ## Compute the LA ##
+        # # Compute the LA # #
         look_ahead_dist = constrain(
             self.P2.k_const * act_velocity,
             self.P2.min_lookfwd_dist.value,
@@ -118,18 +147,20 @@ class Controller(ControllerABC):
         )
 
 
-        ## Select a TrajectoryPoint based on LA ##
+        # # Select a TrajectoryPoint based on LA # #
         # Note: trajectory index is used to speed this up.
         goal_point_id = 0
         for i in range(trajectory.length):
             next_to_try = (trajectory_i + i) % trajectory.length
-            distance_temp = point_distance(self.Vehicle.rear_axle, trajectory.get(next_to_try))
+            distance_temp = point_distance(
+                self.Vehicle.rear_axle, trajectory.get(next_to_try)
+            )
 
             if distance_temp > look_ahead_dist:
                 goal_point_id = next_to_try
                 break
 
-        #self.pub_la_point.publish(PointStamped(header=Header(stamp=rospy.Time.now(), frame_id="map"), point=trajectory.get(goal_point_id)))
+
         self.pub_la_point.publish(
             PointStamped(
                 header = Header(
@@ -145,7 +176,7 @@ class Controller(ControllerABC):
         )
 
 
-        ## Compute the required steering angle ##
+        # # Compute the required steering angle # #
         # Calculation of pure pursuit
         alpha = angle_between_vectors(self.Vehicle.rear_axle,
                                       trajectory.get(goal_point_id),
@@ -158,8 +189,10 @@ class Controller(ControllerABC):
 
         alpha *= angle_direction  # for oriented angle
 
-        steer_angle = math.atan((2 * self.Vehicle.L * math.sin(alpha)) / look_ahead_dist)
+        steer_angle = math.atan(
+            (2 * self.Vehicle.L * math.sin(alpha)) / look_ahead_dist
+        )
 
-        #self.Vehicle.v = act_velocity
+        # self.Vehicle.v = act_velocity
 
         return act_velocity, steer_angle

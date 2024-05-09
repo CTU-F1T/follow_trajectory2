@@ -1,31 +1,27 @@
 #!/usr/bin/env python
 # run.py
-"""ROS2 Entrypoint for 'follow_trajectory2'.
+"""Entrypoint for 'follow_trajectory2'.
+
+Shared for both ROS versions.
 """
 
-import rclpy
+from autopsy.core import Core
 import sys
 
-from follow_trajectory2.module._run import RunNode
+from follow_trajectory2._run import RunNode
 
 
 def main(args = None):
-    """Starts a ROS node, registers the callbacks."""
-
+    """Start a ROS node, register the callbacks."""
     if args is None:
         args = sys.argv
 
-    rclpy.init(args = args)
+    Core.init(args = args)
 
     node = RunNode()
 
-    rclpy.spin(node)
-
-    # Destroy the node explicitly
-    # (optional - otherwise it will be done automatically
-    # when the garbage collector destroys the node object)
-    node.destroy_node()
-    rclpy.shutdown()
+    Core.spin(node)
+    Core.shutdown()
 
 
 if __name__ == '__main__':

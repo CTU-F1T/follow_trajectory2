@@ -1,27 +1,19 @@
 #!/usr/bin/env python
 # controllerabc.py
 """Controller interface for implementing trajectory tracking methods.
+
+Along with this it is recommended to import functions from 'utils'.
 """
-######################
-# Imports & Globals
-######################
-
-import math
-
-from follow_trajectory2.module._utils import *
-
-
-# Messages
-from geometry_msgs.msg import Point
-
-
 ######################
 # ControllerABC class
 ######################
 
+
 class ControllerABC(object):
+    """Abstract Base Class for implementing a Controller."""
 
     def __init__(self, vehicle, node = None, *args, **kwargs):
+        """Initialize the Controller."""
         super(ControllerABC, self).__init__()
 
         self.Vehicle = vehicle
@@ -38,7 +30,7 @@ class ControllerABC(object):
         trajectory -- trajectory data, Trajectory
 
         Returns:
-        -
+        (nothing)
         """
         pass
 
@@ -68,7 +60,8 @@ class ControllerABC(object):
         controller -- controller instance, call with self
         point -- point of the trajectory, TrajectoryPoint
         trajectory -- trajectory data, Trajectory
-        trajectory_i -- (approximate) index of the closest point to the `point`, float/int
+        trajectory_i -- (approximate) index of the closest point
+                        to the `point`, float/int
 
         Returns:
         velocity -- action value for velocity, [m.s^-1], float
