@@ -9,7 +9,8 @@ package_name = 'follow_trajectory2'
 setup(
     name = package_name,
     version = '0.0.0',
-    packages = [package_name],
+    # The second item is probably needed when not installing using simlink
+    packages = [package_name, package_name+".controllers"],
     data_files = [
         (
             'share/ament_index/resource_index/packages',
